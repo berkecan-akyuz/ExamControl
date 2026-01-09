@@ -1,0 +1,19 @@
+flowchart TD
+    start((Start)) --> A[Proctor Initiates Check-in]
+    A --> B{Student Identified?}
+    B -- No --> C[Search Roster manually]
+    B -- Yes --> D[Retrieve Student Details]
+    D --> E[Capture Live Photo]
+    E --> F{Face Match?}
+    F -- No --> G[Alert: Mismatch!]
+    G --> H{Manual Override?}
+    H -- No --> I[Log Violation] --> Z((End))
+    H -- Yes --> J[Proctor Verifies ID Card]
+    J --> K[Mark as Verified (Manual)]
+    F -- Yes --> K
+    K --> L{Seat Correct?}
+    L -- No --> M[Direct to Correct Seat]
+    L -- Yes --> N[Confirm Check-in]
+    M --> N
+    N --> DB[(Update Database)]
+    DB --> Z

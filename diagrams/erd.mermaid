@@ -1,0 +1,81 @@
+erDiagram
+    Users {
+        int UserID PK
+        string Username
+        string PasswordHash
+        string Role "Admin, Proctor"
+        string FullName
+    }
+
+    Students {
+        int StudentID PK
+        string UniversityID "Unique"
+        string FullName
+        string Email
+        blob ReferencePhoto "Legacy"
+    }
+
+    StudentPhotos {
+        int PhotoID PK
+        int StudentID FK
+        string PhotoUrl
+        datetime CreatedAt
+    }
+
+    Rooms {
+        int RoomID PK
+        string RoomName
+        int Capacity
+        string LayoutConfig "JSON: Rows/Cols"
+    }
+
+    Exams {
+        int ExamID PK
+        string CourseCode
+        string ExamName
+        datetime StartTime
+        int DurationMinutes
+        int RoomID FK
+        int CreatedBy FK
+    }
+
+    ExamRoster {
+        int RosterID PK
+        int ExamID FK
+        int StudentID FK
+        string AssignedSeat
+        string Status "Scheduled, Present, Absent"
+        datetime CheckInTime
+    }
+
+    CheckInLogs {
+        int LogID PK
+        int RosterID FK
+        datetime Timestamp
+        float MLConfidenceScore
+        boolean IsMatch
+        boolean IsSeatCorrect
+        string CapturedImagePath
+    }
+
+    Violations {
+        int ViolationID PK
+        int ExamID FK
+        int StudentID FK
+        string Reason
+        text Notes
+        string EvidenceImagePath
+        datetime ReportedAt
+        int ReportedBy FK
+    }
+
+    Users ||--o{ Exams : "creates"
+    Rooms ||--o{ Exams : "hosts"
+    Exams ||--o{ ExamRoster : "contains"
+    Students ||--o{ ExamRoster : "enrolled in"
+    Students ||--o{ ExamRoster : "enrolled in"
+    Students ||--o{ StudentPhotos : "has gallery"
+    ExamRoster ||--o{ CheckInLogs : "generates"
+    Users ||--o{ Violations : "reports"
+    Exams ||--o{ Violations : "has"
+    Students ||--o{ Violations : "commits"

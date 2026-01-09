@@ -1,0 +1,75 @@
+@startuml
+' UC-01: Manage Student Roster
+left to right direction
+actor Admin as A
+package "Roster Management System" {
+    usecase "Add New Student" as UC1
+    usecase "Capture Reference Photos" as UC2
+    usecase "Edit Student Details" as UC3
+    usecase "View Roster List" as UC4
+}
+A --> UC1
+A --> UC3
+A --> UC4
+UC1 ..> UC2 : <<include>>
+@enduml
+
+@startuml
+' UC-02: Configure Room Layouts
+left to right direction
+actor Admin as A
+package "Facility Management" {
+    usecase "Create New Room" as UC5
+    usecase "Define Seating Grid" as UC6
+    usecase "View Room Capacity" as UC7
+}
+A --> UC5
+A --> UC7
+UC5 ..> UC6 : <<include>>
+@enduml
+
+@startuml
+' UC-03: Exam Scheduling
+left to right direction
+actor Admin as A
+package "Exam Controller" {
+    usecase "Create Exam Event" as UC8
+    usecase "Assign Room to Exam" as UC9
+    usecase "Assign Students to Exam" as UC10
+}
+A --> UC8
+UC8 ..> UC9 : <<include>>
+UC8 ..> UC10 : <<include>>
+@enduml
+
+@startuml
+' UC-04: Proctor Check-in Session
+left to right direction
+actor Proctor as P
+package "Check-in Station" {
+    usecase "Select Active Exam" as UC11
+    usecase "Search Student" as UC12
+    usecase "Verify Identity (ML)" as UC13
+    usecase "Override Verification" as UC14
+}
+P --> UC11
+P --> UC12
+P --> UC13
+UC14 .> UC13 : <<extend>>
+@enduml
+
+@startuml
+' UC-05: Incident Reporting
+left to right direction
+actor Proctor as P
+actor Admin as A
+package "Security Logs" {
+    usecase "Log Violation" as UC15
+    usecase "Attach Evidence" as UC16
+    usecase "View Activity Logs" as UC17
+}
+P --> UC15
+UC15 ..> UC16 : <<include>>
+P --> UC17
+A --> UC17
+@enduml

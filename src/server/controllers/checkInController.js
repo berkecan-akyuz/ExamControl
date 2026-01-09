@@ -3,7 +3,7 @@ const faceService = require('../services/faceService');
 
 exports.verifyCheckIn = async (req, res) => {
     // Requires 'multer' middleware to populate req.file
-    const { rosterId } = req.body;
+    const { rosterId, seatCode } = req.body; // Added seatCode
     const file = req.file; // Captured image
 
     if (!file || !rosterId) {
@@ -11,9 +11,9 @@ exports.verifyCheckIn = async (req, res) => {
     }
 
     try {
-        // 1. Get Student References
+        // 1. Get Student References AND Assigned Seat
         const rosterRes = await sql.query`
-            SELECT er.StudentID 
+            SELECT er.StudentID, er.AssignedSeat 
             FROM ExamRoster er
             WHERE er.RosterID = ${rosterId}
         `;
@@ -22,7 +22,17 @@ exports.verifyCheckIn = async (req, res) => {
             return res.status(404).json({ message: 'Roster entry not found' });
         }
 
-        const studentId = rosterRes.recordset[0].StudentID;
+        const studentData = rosterRes.recordset[0];
+        const studentId = studentData.StudentID;
+        const assignedSeat = studentData.AssignedSeat;
+
+        // Verify Seat
+        // If seatCode is provided, check it. If not, we might assume 0 or handle strictly.
+        // Assuming strict:
+        let isSeatCorrect = false;
+        if (seatCode && assignedSeat) {
+            isSeatCorrect = (seatCode.trim().toUpperCase() === assignedSeat.trim().toUpperCase());
+        }
 
         const photoRes = await sql.query`
             SELECT PhotoUrl FROM StudentPhotos WHERE StudentID = ${studentId}
@@ -37,7 +47,9 @@ exports.verifyCheckIn = async (req, res) => {
 
         const result = await faceService.verifyIdentity(imgBuffer, referencePhotos);
 
-        // 3. Update Database if match
+        // 3. Update Status only if BOTH match (or maybe just Identity match is enough for 'Present' but with warning?)
+        // Requirement says: "display a specific warning if the identity matches but the seat is wrong"
+        // Usually, we verify identity = Present. Seat issue is a warning/log.
         if (result.isMatch) {
             await sql.query`
                 UPDATE ExamRoster 
@@ -46,10 +58,10 @@ exports.verifyCheckIn = async (req, res) => {
             `;
         }
 
-        // 4. Log Attempt
+        // 4. Log Attempt with ACTUAL Seat Status
         await sql.query`
             INSERT INTO CheckInLogs (RosterID, MLConfidenceScore, IsMatch, IsSeatCorrect, CapturedImagePath)
-            VALUES (${rosterId}, ${result.score || 0.95}, ${result.isMatch ? 1 : 0}, 1, ${'/uploads/' + file.filename})
+            VALUES (${rosterId}, ${result.score || 0.95}, ${result.isMatch ? 1 : 0}, ${isSeatCorrect ? 1 : 0}, ${'/uploads/' + file.filename})
         `;
 
         // 5. Return Result to Client
@@ -57,7 +69,11 @@ exports.verifyCheckIn = async (req, res) => {
         res.json({
             success: true,
             isMatch: result.isMatch,
-            message: result.isMatch ? 'Identity Verified' : 'Verification Failed'
+            isSeatCorrect: isSeatCorrect, // Return verification to frontend
+            assignedSeat: assignedSeat,   // Helpful for frontend to show "You should be in X"
+            message: result.isMatch
+                ? (isSeatCorrect ? 'Identity Verified' : `Identity Verified, but wrong seat! Go to ${assignedSeat}`)
+                : 'Verification Failed'
         });
 
     } catch (err) {

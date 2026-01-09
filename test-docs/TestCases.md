@@ -13,3 +13,7 @@
 | **TC_CHK_05** | Multiple Faces Detected | Two people in camera view | 1. Position two faces in frame<br>2. Click Verify | Error: "Multiple faces detected" |
 | **TC_CHK_06** | Missing Reference Photo | Student has no ref photo in DB | 1. Search 'Student B' (no photo)<br>2. Attempt Verify | Error: "No reference photo available" |
 | **TC_VAL_01** | Empty Credentials | Login Page | 1. Leave fields empty<br>2. Click Login | Error: "Username and password required" |
+| **TC_SEC_01** | **Secure ML Verification** | Student Selected | 1. Capture Photo<br>2. Click Verify | Backend processes image<br>Returns valid Match/NoMatch<br>Frontend shows "Server-Side ML Active" |
+| **TC_SEC_02** | **Seat Code Verification** | Student at Wrong Seat | 1. Capture Photo (Match)<br>2. Seat Code != Assigned | Status 'Present' but Warning: "Wrong Seat!"<br>Log includes `IsSeatCorrect=0` |
+| **TC_SEC_03** | **Secure File Upload** | Manage Roster | 1. Create Student<br>2. Upload via Webcam/File | File saved to `src/server/uploads/{uuid}`<br>DB stores relative path |
+| **TC_UNIT_01** | **ML Service Resilience** | Backend | 1. Run `npm test` | All tests pass (Mock Mode active if binaries missing) |

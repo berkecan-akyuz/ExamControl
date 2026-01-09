@@ -24,7 +24,9 @@ Handles request logic.
 *   `studentController.js`: CRUD for students.
 
 ### `/services`
-*   `faceService.js`: Wraps `face-api.js`/`@tensorflow/tfjs-node`. Includes **Mock Mode** for development without heavy binaries.
+### `/services`
+*   `faceService.js`: Wraps `face-api.js` and **`@tensorflow/tfjs` (Pure JS v1.7.4)**.
+    > **Note**: Native C++ bindings (`tfjs-node`) are incompatible with Node v24. This system is locked to Pure JS v1.7.4 for stability.
 
 ### `/middleware`
 *   `authMiddleware.js`: JWT verification.

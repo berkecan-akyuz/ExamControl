@@ -90,15 +90,25 @@ export default function CheckIn() {
                         }}
                     >
                         <option value="">-- Choose Exam --</option>
-                        {/* Deduplicate exams by 'Name + StartTime' to hide multiple sections/DB duplicates */}
-                        {Array.from(new Map(exams.map(item => {
-                            const label = `${item.ExamName} (${new Date(item.StartTime).toLocaleDateString()})`;
-                            return [label, item]; // Key is label, keeps last one
-                        })).values()).map(e => (
-                            <option key={e.ExamID} value={e.ExamID}>
-                                {e.ExamName} ({new Date(e.StartTime).toLocaleDateString()})
-                            </option>
-                        ))}
+                        {/* Deduplicate and Sort */}
+                        {(() => {
+                            // 1. Deduplicate by unique Label
+                            const uniqueMap = new Map();
+                            exams.forEach(item => {
+                                const d = new Date(item.StartTime);
+                                const label = `[${item.CourseCode}] ${item.ExamName} (${d.toLocaleDateString()} ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})`;
+                                uniqueMap.set(label, item);
+                            });
+
+                            // 2. Sort by Time
+                            const sorted = Array.from(uniqueMap.values()).sort((a, b) => new Date(a.StartTime) - new Date(b.StartTime));
+
+                            return sorted.map(e => {
+                                const d = new Date(e.StartTime);
+                                const label = `[${e.CourseCode}] ${e.ExamName} (${d.toLocaleDateString()} ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})`;
+                                return <option key={e.ExamID} value={e.ExamID}>{label}</option>;
+                            });
+                        })()}
                     </select>
                 </div>
 

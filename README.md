@@ -25,14 +25,14 @@ This system provides an end-to-end solution for exam security, featuring:
 - MS SQL Server (Local or Remote)
 
 ### 1. Database Setup
-Run `database/schema.sql` and `database/dummy_data.sql` in SSMS to create `ExamSecurityDB`.
+Run `database/schema.sql` and `database/seed_manual.sql` in SSMS to create `ExamSecurityDB`.
 
 ### 2. Backend Setup
 ```bash
 cd src/server
 npm install
 # Configure .env if needed (default: user=sa, pass=yourStrong(!)Password)
-npm start
+npm run dev
 ```
 Server runs on `http://localhost:5000`.
 
@@ -47,15 +47,28 @@ npm run dev
 Client runs on `http://localhost:3000`.
 
 ## Testing
-To run backend unit tests:
+Unit tests are located in the `tests/` directory.
+To run them:
 ```bash
-cd src/server
-npm test
+# From the project root
+npm install jest --save-dev # One time setup
+npx jest
 ```
 
 ## Demo Scenario
-1. Login as **proctor1** / **password123**.
+1. **Login**:
+   - **Admin**: `admin` / `admin123`
+   - **Proctor**: `proctor1` / `proctor123`
 2. Go to **Start Check-in**.
-3. Select "Intro to CS Final".
-4. Search for "Alice".
-5. Capture photo -> Verify. (Ensure models are loaded).
+3. Select an active Exam (e.g., `[CS101] Midterm Exam`).
+4. **Click a Seat** (Blue = Occupied) on the interactive map to select a student.
+5. Capture photo -> **Verify**.
+   - **Green Check**: Identity Verified & Correct Seat.
+   - **Orange Warning**: Identity Verified but Wrong Seat.
+   - **Red X**: Verification Failed.
+5. Capture photo -> Verify.
+   - **Green**: Identity Verified.
+   - **Orange**: Identity Verified but Wrong Seat.
+   - **Red**: Verification Failed.
+
+> **System Status (Jan 2026)**: GREEN / Stable. Real ML enabled via Pure JS.

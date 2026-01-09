@@ -89,12 +89,12 @@ CREATE TABLE ExamRoster (
 -- CheckInLogs Table (History of check-in attempts)
 IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='CheckInLogs' AND xtype='U')
 CREATE TABLE CheckInLogs (
-    LogID INT IDENTITY(1,1) PRIMARY KEY,
+    LogID INT PRIMARY KEY IDENTITY(1,1),
     RosterID INT FOREIGN KEY REFERENCES ExamRoster(RosterID),
     Timestamp DATETIME DEFAULT GETDATE(),
-    MLConfidenceScore FLOAT,
-    IsMatch BIT,
-    IsSeatCorrect BIT,
+    MLConfidenceScore FLOAT, -- Added for ML Verification
+    IsMatch BIT DEFAULT 0,
+    IsSeatCorrect BIT DEFAULT 0, -- Added for Seat Verification
     CapturedImagePath NVARCHAR(MAX)
 );
 

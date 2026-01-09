@@ -18,6 +18,8 @@ router.delete('/rooms/:id', deleteRoom);
 
 // Student/Check-in Routes
 const upload = require('../middleware/upload');
+const { verifyToken, checkRole } = require('../middleware/authMiddleware');
+
 // Check-in Routes
 const { verifyCheckIn } = require('../controllers/checkInController');
 

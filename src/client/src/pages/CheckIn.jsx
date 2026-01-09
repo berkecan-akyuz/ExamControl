@@ -54,9 +54,10 @@ export default function CheckIn() {
 
             if (apiRes.data.success && apiRes.data.isMatch) {
                 setVerificationStatus('success');
-                setConfidence(0.98); // Mock/Real from server
+                setConfidence(apiRes.data.score || 0.99);
             } else {
                 setVerificationStatus('fail');
+                setConfidence(apiRes.data.score || 0);
             }
 
         } catch (err) {
@@ -80,11 +81,23 @@ export default function CheckIn() {
                             const id = e.target.value;
                             setSelectedExamId(id);
                             setSelectedExam(exams.find(ex => ex.ExamID.toString() === id));
+                            // Auto-fetch all students when exam is selected
+                            if (id) {
+                                axios.get(`/api/roster/search?examId=${id}`).then(res => setStudents(res.data));
+                            } else {
+                                setStudents([]);
+                            }
                         }}
                     >
                         <option value="">-- Choose Exam --</option>
-                        {exams.map(e => (
-                            <option key={e.ExamID} value={e.ExamID}>{e.ExamName}</option>
+                        {/* Deduplicate exams by 'Name + StartTime' to hide multiple sections/DB duplicates */}
+                        {Array.from(new Map(exams.map(item => {
+                            const label = `${item.ExamName} (${new Date(item.StartTime).toLocaleDateString()})`;
+                            return [label, item]; // Key is label, keeps last one
+                        })).values()).map(e => (
+                            <option key={e.ExamID} value={e.ExamID}>
+                                {e.ExamName} ({new Date(e.StartTime).toLocaleDateString()})
+                            </option>
                         ))}
                     </select>
                 </div>
@@ -128,8 +141,9 @@ export default function CheckIn() {
                                 <p className="text-xl text-yellow-400">Assigned Seat: {selectedStudent.AssignedSeat}</p>
                             </div>
                             <div className="text-right">
-                                <span className="px-3 py-1 rounded text-sm bg-blue-500/20 text-blue-500">
-                                    Server-Side ML Active
+                                <span className={`px-3 py-1 rounded text-sm ${confidence === 0 ? 'bg-gray-500/20 text-gray-400' : (confidence > 0.8 ? 'bg-green-500/20 text-green-500' : 'bg-red-500/20 text-red-500')}`}>
+                                    {/* Detect if result came from Mock or Real ML based on confidence precision or explicitly return flag */}
+                                    {confidence > 0 ? `Confidence: ${(confidence * 100).toFixed(1)}%` : 'Ready'}
                                 </span>
                             </div>
                         </div>
@@ -143,36 +157,40 @@ export default function CheckIn() {
                                         gridTemplateColumns: `repeat(${JSON.parse(selectedExam.LayoutConfig).cols}, 24px)`
                                     }}>
                                         {[...Array(JSON.parse(selectedExam.LayoutConfig).rows * JSON.parse(selectedExam.LayoutConfig).cols)].map((_, i) => {
-                                            // Simple grid mapping: "A1" logic assumed as row-major or simple index? 
-                                            // For this demo, let's assume seats are just indexed or we highlight strictly by label if we matched logic.
-                                            // ACTUALLY: Let's assume the Seat String "R1-C2" or similar.
-                                            // BUT: The user effectively enters "A1". Let's try to parse "A1" -> Row 0, Col 0.
-                                            // Simplified: We highlight the box if the student is assigned there.
-
-                                            // Let's make it simpler for the Visual: Just show a grid and highlight a random "target" or try to parse.
-                                            // Better: Just Highlight the seat matching the index if we mapped it.
-                                            // Since we don't have a robust "Seat -> Index" mapper in frontend yet, we will
-                                            // highlight the box corresponding to the student's seat string IF it matches "R{r}C{c}" format or just show the grid.
-
-                                            // For now: Highlight the seat if the label matches the grid coordinate (e.g. "1-1" for Row 1 Col 1).
-                                            // To make it "Live", let's highlight a box based on a simple hash of the seat string so it looks deterministic.
-
-                                            // Better yet, let's just render the grid.
-                                            // If selectedStudent.AssignedSeat matches "A1", we highlight index 0 (if A=1).
-
-                                            const r = Math.floor(i / JSON.parse(selectedExam.LayoutConfig).cols) + 1;
+                                            const r = Math.floor(i / JSON.parse(selectedExam.LayoutConfig).cols);
                                             const c = (i % JSON.parse(selectedExam.LayoutConfig).cols) + 1;
-                                            // Basic mapping: A1, A2... B1, B2...
-                                            const rowChar = String.fromCharCode(64 + r); // 1=A, 2=B
+                                            const rowChar = String.fromCharCode(65 + r); // 0=A, 1=B
                                             const seatLabel = `${rowChar}${c}`;
-                                            const isAssigned = seatLabel === selectedStudent.AssignedSeat;
+
+                                            // Find student in this seat
+                                            const studentInSeat = students.find(s => s.AssignedSeat === seatLabel);
+                                            const isSelected = selectedStudent && selectedStudent.AssignedSeat === seatLabel;
 
                                             return (
                                                 <div
                                                     key={i}
-                                                    className={`w-6 h-6 rounded-sm text-[8px] flex items-center justify-center border ${isAssigned ? 'bg-yellow-500 border-yellow-400 text-black font-bold animate-pulse' : 'bg-slate-800 border-slate-700 text-slate-600'}`}
+                                                    onClick={() => {
+                                                        if (studentInSeat) {
+                                                            setSelectedStudent(studentInSeat);
+                                                            setVerificationStatus('idle');
+                                                        }
+                                                    }}
+                                                    title={studentInSeat ? `${seatLabel}: ${studentInSeat.FullName}` : seatLabel}
+                                                    className={`
+                                                        w-8 h-8 rounded-md text-[10px] flex items-center justify-center border transition-all relative
+                                                        ${isSelected
+                                                            ? 'bg-yellow-500 border-yellow-400 text-black font-bold ring-2 ring-yellow-500 ring-offset-2 ring-offset-slate-900 z-10 scale-110'
+                                                            : (studentInSeat
+                                                                ? 'bg-blue-900/40 border-blue-500/50 text-blue-200 cursor-pointer hover:bg-blue-800 hover:border-blue-400'
+                                                                : 'bg-slate-800 border-slate-700 text-slate-600')
+                                                        }
+                                                    `}
                                                 >
                                                     {seatLabel}
+                                                    {/* Simple dot indicator for occupancy */}
+                                                    {studentInSeat && !isSelected && (
+                                                        <div className="absolute top-1 right-1 w-1.5 h-1.5 bg-blue-500 rounded-full"></div>
+                                                    )}
                                                 </div>
                                             );
                                         })}

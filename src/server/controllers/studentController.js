@@ -72,21 +72,34 @@ exports.getStudentPhotos = async (req, res) => {
 exports.getStudentAndSeat = async (req, res) => {
     const { examId, studentIdentifier } = req.query; // Identifier can be ID or Name
 
-    // Safety check
-    if (!examId || !studentIdentifier) {
-        return res.status(400).json({ message: 'Missing parameters' });
+    // Safety check - Exam ID is mandatory
+    if (!examId) {
+        return res.status(400).json({ message: 'Exam ID is required' });
     }
 
     try {
-        // Search by UniversityID (exact) or FullName (contains)
-        const result = await sql.query`
-            SELECT s.StudentID, s.UniversityID, s.FullName, s.ReferencePhotoUrl, 
-                   er.AssignedSeat, er.Status, er.RosterID
-            FROM ExamRoster er
-            JOIN Students s ON er.StudentID = s.StudentID
-            WHERE er.ExamID = ${examId}
-            AND (s.UniversityID = ${studentIdentifier} OR s.FullName LIKE '%' + ${studentIdentifier} + '%')
-        `;
+        let result;
+
+        if (studentIdentifier && studentIdentifier.trim() !== '') {
+            // Search by UniversityID (exact) or FullName (contains)
+            result = await sql.query`
+                SELECT s.StudentID, s.UniversityID, s.FullName, s.ReferencePhotoUrl, 
+                       er.AssignedSeat, er.Status, er.RosterID
+                FROM ExamRoster er
+                JOIN Students s ON er.StudentID = s.StudentID
+                WHERE er.ExamID = ${examId}
+                AND (s.UniversityID = ${studentIdentifier} OR s.FullName LIKE '%' + ${studentIdentifier} + '%')
+            `;
+        } else {
+            // Return ALL students for the exam if no search term
+            result = await sql.query`
+                SELECT s.StudentID, s.UniversityID, s.FullName, s.ReferencePhotoUrl, 
+                       er.AssignedSeat, er.Status, er.RosterID
+                FROM ExamRoster er
+                JOIN Students s ON er.StudentID = s.StudentID
+                WHERE er.ExamID = ${examId}
+            `;
+        }
 
         // If multiple found, front-end should handle asking for more specific, but here we return list
         const students = result.recordset;

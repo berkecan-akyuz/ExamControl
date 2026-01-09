@@ -1,18 +1,24 @@
 const { sql } = require('../db');
 
 exports.getExams = async (req, res) => {
+    console.log("DEBUG: getExams called");
+    console.log("DEBUG: SQL Object defined?", !!sql);
+    console.log("DEBUG: SQL Connected?", sql && sql.connected); // Check connection state
+
     try {
         // Fetch exams that are scheduled for today or active
         // For prototype, just fetch all
+        console.log("DEBUG: Running Query...");
         const result = await sql.query`
             SELECT e.ExamID, e.ExamName, e.CourseCode, e.StartTime, r.RoomName, r.LayoutConfig, r.Capacity
             FROM Exams e
             JOIN Rooms r ON e.RoomID = r.RoomID
         `;
+        console.log("DEBUG: Query Success, rows:", result.recordset.length);
         res.json(result.recordset);
     } catch (err) {
-        console.error(err);
-        res.status(500).json({ message: 'Server error' });
+        console.error("DEBUG: getExams FAILED:", err); // Critical Log
+        res.status(500).json({ message: 'Server error', error: err.toString() });
     }
 };
 

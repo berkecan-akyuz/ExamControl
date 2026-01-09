@@ -3,7 +3,10 @@ require('dotenv').config();
 
 const config = {
     // Connection string is often more reliable for msnodesqlv8 on some systems
-    connectionString: 'Driver={ODBC Driver 17 for SQL Server};Server=localhost;Database=ExamSecurityDB;Trusted_Connection=yes;'
+    connectionString: 'Driver={ODBC Driver 17 for SQL Server};Server=localhost;Database=ExamSecurityDB;Trusted_Connection=yes;',
+    options: {
+        useUTC: false // Treat DB dates as local time to prevent double-timezone shifting
+    }
 };
 
 async function connectDB() {

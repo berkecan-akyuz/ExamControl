@@ -44,11 +44,28 @@ export default function ManageRoster() {
                 return;
             }
 
-            await axios.post('/api/students', formData);
+            const data = new FormData();
+            data.append('fullName', formData.fullName);
+            data.append('universityId', formData.universityId);
+            data.append('email', formData.email);
+
+            // Convert Base64 images to Blobs
+            for (let i = 0; i < formData.referencePhotos.length; i++) {
+                const base64Data = formData.referencePhotos[i];
+                const res = await fetch(base64Data);
+                const blob = await res.blob();
+                data.append('photos', blob, `photo_${i}.jpg`);
+            }
+
+            await axios.post('/api/students', data, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            });
+
             setShowForm(false);
             setFormData({ fullName: '', universityId: '', email: '', referencePhotos: [] });
             fetchStudents();
         } catch (err) {
+            console.error(err);
             alert("Failed to create student");
         }
     };

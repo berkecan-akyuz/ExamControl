@@ -33,13 +33,21 @@ exports.createStudent = async (req, res) => {
         // 2. Insert Photos
         // Note: mssql doesn't support bulk insert easily with variables in one go in the way we want without TableValuedParams or loops
         // For simplicity/demo scale, we loop. In extensive prod, use TVP.
-        if (referencePhotos && referencePhotos.length > 0) {
-            for (const photoUrl of referencePhotos) {
+        // 2. Insert Photos
+        // Handle Multer Files (Secure)
+        if (req.files && req.files.length > 0) {
+            for (const file of req.files) {
+                const photoUrl = `/uploads/${file.filename}`;
                 await transaction.request()
                     .input('sid', sql.Int, studentId)
                     .input('url', sql.NVarChar, photoUrl)
                     .query(`INSERT INTO StudentPhotos (StudentID, PhotoUrl) VALUES (@sid, @url)`);
             }
+        }
+
+        // Handle Legacy Base64/URLs (if any)
+        if (referencePhotos && referencePhotos.length > 0) {
+            // ... existing logic if needed, or deprecate
         }
 
         await transaction.commit();

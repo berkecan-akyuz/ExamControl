@@ -26,7 +26,16 @@ erDiagram
         int RoomID PK
         string RoomName
         int Capacity
-        string LayoutConfig "JSON: Rows/Cols"
+        string LayoutConfig "Legacy/Cache"
+    }
+
+    Seats {
+        int SeatID PK
+        int RoomID FK
+        string RowLabel
+        string ColLabel
+        boolean IsAccessible
+        string Status
     }
 
     Exams {
@@ -69,8 +78,9 @@ erDiagram
         int ReportedBy FK
     }
 
-    Users ||--o{ Exams : "creates"
-    Rooms ||--o{ Exams : "hosts"
+    Exams }|..|| Users : "Created By"
+    Rooms ||--|{ Seats : "Has"
+    Exams }|..|| Rooms : "Assigned To"
     Exams ||--o{ ExamRoster : "contains"
     Students ||--o{ ExamRoster : "enrolled in"
     Students ||--o{ ExamRoster : "enrolled in"

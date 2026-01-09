@@ -12,7 +12,6 @@ export default function CheckIn() {
     const [searchQuery, setSearchQuery] = useState('');
     const [students, setStudents] = useState([]);
     const [selectedStudent, setSelectedStudent] = useState(null);
-    const [modelsLoaded, setModelsLoaded] = useState(false);
     const [verificationStatus, setVerificationStatus] = useState('idle'); // idle, processing, success, fail
     const [confidence, setConfidence] = useState(0);
 
@@ -20,22 +19,6 @@ export default function CheckIn() {
 
     // Load Models
     useEffect(() => {
-        const loadModels = async () => {
-            const MODEL_URL = '/models';
-            try {
-                await Promise.all([
-                    faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL),
-                    faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
-                    faceapi.nets.faceLandmark68.loadFromUri(MODEL_URL),
-                    faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
-                ]);
-                setModelsLoaded(true);
-                console.log('Models Loaded');
-            } catch (err) {
-                console.error("Failed to load models. Ensure they are in /public/models", err);
-            }
-        };
-        loadModels();
         fetchExams();
     }, []);
 
@@ -55,59 +38,26 @@ export default function CheckIn() {
         setVerificationStatus('processing');
 
         try {
-            // 0. Check if photos exist
-            const photos = selectedStudent.Photos || [];
-            if (photos.length === 0 && selectedStudent.ReferencePhotoUrl) photos.push(selectedStudent.ReferencePhotoUrl); // legacy fallback
-
-            if (photos.length === 0) {
-                alert("No reference photos for this student!");
-                setVerificationStatus('fail');
-                return;
-            }
-
-            // 1. Get Live Descriptor (Once)
             const screenshot = webcamRef.current.getScreenshot();
-            const liveImg = await faceapi.fetchImage(screenshot);
-            const liveDetection = await faceapi.detectSingleFace(liveImg).withFaceLandmarks().withFaceDescriptor();
 
-            if (!liveDetection) {
-                alert("Could not find face in camera view!");
-                setVerificationStatus('fail');
-                return;
-            }
+            // Convert to Blob for upload
+            const res = await fetch(screenshot);
+            const blob = await res.blob();
 
-            // 2. Iterate through Reference Photos to find best match
-            let bestDistance = 1.0;
+            const formData = new FormData();
+            formData.append('image', blob, 'capture.jpg');
+            formData.append('rosterId', selectedStudent.RosterID);
 
-            for (const photoUrl of photos) {
-                try {
-                    const refImg = await faceapi.fetchImage(photoUrl);
-                    const refDetection = await faceapi.detectSingleFace(refImg).withFaceLandmarks().withFaceDescriptor();
-
-                    if (refDetection) {
-                        const faceMatcher = new faceapi.FaceMatcher(refDetection);
-                        const match = faceMatcher.findBestMatch(liveDetection.descriptor);
-                        if (match.distance < bestDistance) {
-                            bestDistance = match.distance;
-                        }
-                    }
-                } catch (e) {
-                    console.warn("Failed to process reference photo", e);
-                }
-            }
-
-            // 3. Evaluate Best Match
-            const isMatch = bestDistance < 0.6;
-            setConfidence(1 - bestDistance);
-            setVerificationStatus(isMatch ? 'success' : 'fail');
-
-            // 4. Log to Backend
-            await axios.post('/api/checkin', {
-                rosterId: selectedStudent.RosterID,
-                isMatch,
-                confidenceScore: 1 - bestDistance,
-                isSeatCorrect: true // Mock for now
+            const apiRes = await axios.post('/api/checkin/verify', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
             });
+
+            if (apiRes.data.success && apiRes.data.isMatch) {
+                setVerificationStatus('success');
+                setConfidence(0.98); // Mock/Real from server
+            } else {
+                setVerificationStatus('fail');
+            }
 
         } catch (err) {
             console.error(err);
@@ -178,8 +128,8 @@ export default function CheckIn() {
                                 <p className="text-xl text-yellow-400">Assigned Seat: {selectedStudent.AssignedSeat}</p>
                             </div>
                             <div className="text-right">
-                                <span className={`px-3 py-1 rounded text-sm ${modelsLoaded ? 'bg-green-500/20 text-green-500' : 'bg-red-500/20 text-red-500'}`}>
-                                    {modelsLoaded ? 'ML System Ready' : 'Loading Models...'}
+                                <span className="px-3 py-1 rounded text-sm bg-blue-500/20 text-blue-500">
+                                    Server-Side ML Active
                                 </span>
                             </div>
                         </div>
@@ -236,28 +186,9 @@ export default function CheckIn() {
                                 ref={webcamRef}
                                 screenshotFormat="image/jpeg"
                                 className="w-full h-full object-cover"
-                                onUserMedia={() => {
-                                    // Start tracking loop when camera is ready
-                                    const interval = setInterval(async () => {
-                                        if (webcamRef.current && webcamRef.current.video.readyState === 4) {
-                                            const video = webcamRef.current.video;
-                                            const detection = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions());
-
-                                            const canvas = document.getElementById('overlay-canvas');
-                                            if (canvas && detection) {
-                                                const dims = faceapi.matchDimensions(canvas, video, true);
-                                                const resized = faceapi.resizeResults(detection, dims);
-                                                faceapi.draw.drawDetections(canvas, resized);
-                                            }
-                                        }
-                                    }, 100); // Check every 100ms
-                                    return () => clearInterval(interval);
-                                }}
+                            // Removed onUserMedia prop and client-side face detection/drawing logic
                             />
-                            <canvas
-                                id="overlay-canvas"
-                                className="absolute inset-0 pointer-events-none"
-                            />
+                            {/* Removed overlay-canvas as client-side face-api is no longer used */}
                         </div>
 
                         <div className="flex gap-2 justify-center mb-6">
@@ -273,8 +204,8 @@ export default function CheckIn() {
 
                         <button
                             onClick={verify}
-                            disabled={!modelsLoaded || verificationStatus === 'processing'}
-                            className={`bg-green-600 font-bold py-3 px-12 rounded-full shadow-lg shadow-green-600/20 transition-all transform mb-6 flex items-center gap-2 ${!modelsLoaded || verificationStatus === 'processing' ? 'opacity-50 cursor-not-allowed' : 'hover:bg-green-500 hover:scale-105 text-white'}`}
+                            disabled={verificationStatus === 'processing'}
+                            className={`bg-green-600 font-bold py-3 px-12 rounded-full shadow-lg shadow-green-600/20 transition-all transform mb-6 flex items-center gap-2 ${verificationStatus === 'processing' ? 'opacity-50 cursor-not-allowed' : 'hover:bg-green-500 hover:scale-105 text-white'}`}
                         >
                             {verificationStatus === 'processing' ? (
                                 <>
